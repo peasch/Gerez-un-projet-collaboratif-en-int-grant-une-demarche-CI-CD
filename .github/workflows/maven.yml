@@ -49,7 +49,7 @@ jobs:
       - name: Build and Test Backend
         working-directory: ./back
         # On fait un install pour générer le dossier target/classes
-        run: mvn clean install
+        run: mvn clean install --code-coverage
 
       - name: SonarQube Scan
         uses: sonarSource/sonarqube-scan-action@v3
