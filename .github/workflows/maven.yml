@@ -27,7 +27,7 @@ jobs:
 
       - name: Run Frontend Tests
         working-directory: ./front
-        run: npm test -- --watch=false --browsers=ChromeHeadless
+        run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
 
   # --- JOB BACKEND + SONAR ---
   # On fusionne pour que Sonar trouve les fichiers binaires (.class)
