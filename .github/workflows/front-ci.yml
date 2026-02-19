@@ -1,0 +1,37 @@
+name: front-ci.yml
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: './front/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./front
+        run: npm ci
+
+      - name: Run Frontend Tests
+        working-directory: ./front
+        run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+      - name: SonarQube Scan
+        uses: sonarSource/sonarqube-scan-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectBaseDir: .
