@@ -1,10 +1,14 @@
-name: CI/CD Fullstack Pipeline
+name: CI/ Fullstack test and Sonar scan Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - dev
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+      - dev
+
 
 jobs:
   # --- JOB FRONTEND ---
@@ -29,6 +33,12 @@ jobs:
         working-directory: ./front
         run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
 
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: front/coverage/
+
   # --- JOB BACKEND + SONAR ---
   # On fusionne pour que Sonar trouve les fichiers binaires (.class)
   build-and-analyze:
@@ -49,8 +59,17 @@ jobs:
       - name: Build and Test Backend
         working-directory: ./back
         # On fait un install pour générer le dossier target/classes
-        run: mvn clean verify
+        run: mvn clean test
 
+      - name: Generate JaCoCo Coverage Report
+        working-directory: ./back
+        run: mvn jacoco:report
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: back/target/site/jacoco/
 
       - name: SonarQube Scan
         uses: sonarSource/sonarqube-scan-action@v3
@@ -58,4 +77,4 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectBaseDir: .
+            projectBaseDir: .
