@@ -153,7 +153,7 @@ jobs:
             -Dsonar.projectKey=peasch_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD
             -Dsonar.organization=peasch
             -Dsonar.sources=src
-            -Dsonar.javascript.lcov.reportPaths=front/coverage/lcov.info
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
   # Étape 4: Build Backend (seulement si tests + quality passent)
   build-backend:
