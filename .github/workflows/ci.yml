@@ -1,4 +1,4 @@
-name: CI/ Fullstack test and Sonar scan Pipeline
+name: CI- Continuous integration Tests et SonarScan
 
 on:
   push:
