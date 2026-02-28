@@ -77,11 +77,13 @@ jobs:
         with:
           fetch-depth: 0
       # 1. Récupération des rapports générés aux étapes précédentes
+
       - name: Download Backend Coverage
         uses: actions/download-artifact@v4
         with:
           name: backend-coverage
-          path: back/target/site/jacoco/
+          path: backend-reports
+
       - name: Download Frontend Coverage
         uses: actions/download-artifact@v4
         with:
@@ -114,7 +116,7 @@ jobs:
             -Dsonar.tests=back/src/test/java,front/src
             -Dsonar.test.inclusions=front/src/**/*.spec.ts
             -Dsonar.java.binaries=back/target/classes
-            -Dsonar.coverage.jacoco.xmlReportPaths=back/target/site/jacoco/jacoco.xml
+            -Dsonar.coverage.jacoco.xmlReportPaths=backend-reports/jacoco.xml
             -Dsonar.javascript.lcov.reportPaths=front/coverage/bobapp/lcov.info
   
 
