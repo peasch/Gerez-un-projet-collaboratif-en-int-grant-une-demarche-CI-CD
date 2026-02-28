@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  backend:
+    image: peaschncream/bobapp-back:latest
+    ports:
+      - "8080:8080"
+    networks:
+      - bobapp-net
+
+  frontend:
+    image: peaschncream/bobapp-front:latest
+    ports:
+      - "80:80"
+    networks:
+      - bobapp-net
+    depends_on:
+      - backend
+
+networks:
+  bobapp-net:
+    driver: bridge
