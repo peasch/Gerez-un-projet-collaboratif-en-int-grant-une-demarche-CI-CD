@@ -3,6 +3,7 @@ name: CI- Continuous integration Tests et SonarScan
 on:
   push:
     branches:
+      - main
       - dev
   pull_request:
     branches:
