@@ -79,7 +79,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-test-results
+          name: frontend-coverage
           path: front/coverage/**/lcov.info
 
   # --- Étape 3: Analyse de qualité Globale (Back + Front) ---
