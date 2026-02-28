@@ -76,93 +76,59 @@ jobs:
           path: front/coverage/
 
   # Étape 3a: Analyse de qualité Backend (validation avant déploiement)
-  quality-analysis-backend:
-    name: Quality Analysis Backend
+  quality-analysis:
+    name: Global Quality Analysis
     needs: [ test-backend, test-frontend ]
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # 1. On récupère le rapport du front (indispensable)
+      - name: Download Frontend Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: front/coverage/
+
+      # 2. On prépare Java
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
-      - name: Build and Analyze Backend with SonarCloud
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # 3. ÉTAPE CLÉ : On compile le backend pour générer back/target/classes
+      # On en profite pour générer le rapport Jacoco sur cette machine
+      - name: Re-build Backend for Sonar
         run: |
           cd back
-          mvn clean verify sonar:sonar \
-            -Dsonar.projectKey=peasch_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD \
-            -Dsonar.organization=peasch \
-            -Dsonar.host.url=https://sonarcloud.io \
-            -Dsonar.java.binaries=target/classes \
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-            -Dsonar.sources=src/main \
-            -Dsonar.tests=src/test
+          mvn clean compile jacoco:report
 
-  # Étape 3b: Analyse de qualité Frontend (validation avant déploiement)
-  quality-analysis-frontend:
-    name: Quality Analysis Frontend
-    needs: [ test-backend, test-frontend ]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-          cache: 'npm'
-          cache-dependency-path: front/package-lock.json
-
-      - name: Install Frontend Dependencies
-        run: |
-          cd front
-          npm ci
-
-      - name: Run Frontend Tests with Coverage
-        run: |
-          cd front
-          npm run test -- --watch=false --browsers=ChromeHeadless --code-coverage
-
-
-      - name: SonarCloud Scan Frontend
-        uses: SonarSource/sonarqube-scan-action@v5.0.0 # Version à jour
+      # 4. Scan Sonar global
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          projectBaseDir: front
+          projectBaseDir: .
           args: >
             -Dsonar.projectKey=peasch_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD
             -Dsonar.organization=peasch
-            -Dsonar.sources=src
+            -Dsonar.sources=back/src/main/java,front/src/app
+            -Dsonar.tests=back/src/test/java,front/src
+            -Dsonar.test.inclusions=front/src/**/*.spec.ts
+            -Dsonar.java.binaries=back/target/classes
+            -Dsonar.coverage.jacoco.xmlReportPaths=back/target/site/jacoco/jacoco.xml
             -Dsonar.javascript.lcov.reportPaths=front/coverage/lcov.info
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
 
   build-backend:
     name: Build Backend
-    needs: [ quality-analysis-backend, quality-analysis-frontend ]
+    needs: [ quality-analysis ]
     runs-on: ubuntu-latest
 
     steps:
@@ -190,7 +156,7 @@ jobs:
   # Étape 5: Build Frontend (seulement si tests + quality passent)
   build-frontend:
     name: Build Frontend
-    needs: [ quality-analysis-backend, quality-analysis-frontend ]
+    needs: [ quality-analysis ]
     runs-on: ubuntu-latest
 
     steps:
