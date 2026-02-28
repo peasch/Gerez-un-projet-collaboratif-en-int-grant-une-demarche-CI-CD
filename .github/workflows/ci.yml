@@ -59,11 +59,7 @@ jobs:
       - name: Build and Test Backend
         working-directory: ./back
         # On fait un install pour générer le dossier target/classes
-        run: mvn clean test
-
-      - name: Generate JaCoCo Coverage Report
-        working-directory: ./back
-        run: mvn jacoco:report
+        run: mvn clean test jacoco:report
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
@@ -78,3 +74,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
             projectBaseDir: .
+            args: >
+              -Dsonar.sources=back/src/main/java,front/src
+              -Dsonar.tests=back/src/test/java,front/src
+              -Dsonar.java.binaries=back/target/classes
+              -Dsonar.coverage.jacoco.xmlReportPaths=back/target/site/jacoco/jacoco.xml
+              -Dsonar.javascript.lcov.reportPaths=front/coverage/lcov.info
