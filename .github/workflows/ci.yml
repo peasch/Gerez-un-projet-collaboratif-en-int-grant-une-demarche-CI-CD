@@ -153,12 +153,17 @@ jobs:
           npm run test -- --watch=false --browsers=ChromeHeadless --code-coverage
 
       - name: SonarCloud Scan Frontend
-        uses: SonarSource/sonarcloud-github-action@master
+        uses: SonarSource/sonarqube-scan-action@v5.0.0 # Version à jour
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: front
+          args: >
+            -Dsonar.projectKey=peasch_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD
+            -Dsonar.organization=peasch
+            -Dsonar.sources=src
+            -Dsonar.javascript.lcov.reportPaths=front/coverage/lcov.info
 
   # Build de validation (sans push Docker)
   build-validation:
