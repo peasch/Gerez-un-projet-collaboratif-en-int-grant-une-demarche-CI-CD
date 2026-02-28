@@ -115,14 +115,15 @@ jobs:
           args: >
             -Dsonar.projectKey=peasch_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD
             -Dsonar.organization=peasch
-            -Dsonar.sources=back/src/main/java,front/src
+            -Dsonar.sources=back/src/main/java,front/src/app
             -Dsonar.tests=back/src/test/java,front/src
+            -Dsonar.test.inclusions=front/src/**/*.spec.ts
             -Dsonar.java.binaries=back/target/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=back/target/site/jacoco/jacoco.xml
             -Dsonar.javascript.lcov.reportPaths=front/coverage/lcov.info
   build-backend:
     name: Build Backend
-    needs: [ quality-analysis]
+    needs: [ quality-analysis ]
     runs-on: ubuntu-latest
 
     steps:
@@ -150,7 +151,7 @@ jobs:
   # Étape 5: Build Frontend (seulement si tests + quality passent)
   build-frontend:
     name: Build Frontend
-    needs: [ quality-analysis]
+    needs: [ quality-analysis ]
     runs-on: ubuntu-latest
 
     steps:
