@@ -141,7 +141,7 @@ jobs:
   # Build de validation (sans push Docker)
   build-validation:
     name: Build Validation
-    needs: [quality-analysis-backend, quality-analysis-frontend]
+    needs: [quality-analysis]
     runs-on: ubuntu-latest
 
     steps:
