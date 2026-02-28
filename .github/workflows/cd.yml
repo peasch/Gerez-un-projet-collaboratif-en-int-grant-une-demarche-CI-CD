@@ -6,56 +6,76 @@ on:
       - main
 
 jobs:
-  # --- ÉTAPE 1: TESTS BACKEND ---
+  # Étape 1: Tests Backend (validation avant déploiement)
   test-backend:
     name: Backend Tests
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
           java-version: '11'
           distribution: 'temurin'
           cache: 'maven'
-      - name: Run Backend Tests & JaCoCo
+
+      - name: Run Backend Tests
         run: |
           cd back
-          mvn clean test jacoco:report
-      - name: Upload Backend Coverage
+          mvn clean test
+
+      - name: Generate JaCoCo Coverage Report
+        run: |
+          cd back
+          mvn jacoco:report
+
+      - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage
-          path: back/target/site/jacoco/jacoco.xml
+          path: back/target/site/jacoco/
 
-  # --- ÉTAPE 2: TESTS FRONTEND ---
+  # Étape 2: Tests Frontend (validation avant déploiement)
   test-frontend:
     name: Frontend Tests
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '16'
           cache: 'npm'
           cache-dependency-path: front/package-lock.json
-      - name: Install & Test Frontend
+
+      - name: Install Frontend Dependencies
         run: |
           cd front
           npm ci
+
+      - name: Run Frontend Tests
+        run: |
+          cd front
           npm run test -- --watch=false --browsers=ChromeHeadless --code-coverage
-      - name: Upload Frontend Coverage
+
+      - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
         with:
           name: frontend-coverage
-          path: front/coverage/lcov.info
+          path: front/coverage/
 
-  # --- ÉTAPE 3: ANALYSE DE QUALITÉ UNIQUE (BACK + FRONT) ---
-  quality-analysis:
-    name: Quality Analysis (Full Stack)
+  # Étape 3a: Analyse de qualité Backend (validation avant déploiement)
+  quality-analysis-backend:
+    name: Quality Analysis Backend
     needs: [test-backend, test-frontend]
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -67,116 +87,196 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'maven'
 
-      # On récupère les rapports de couverture générés dans les jobs précédents
-      - name: Download Backend Coverage
-        uses: actions/download-artifact@v4
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v3
         with:
-          name: backend-coverage
-          path: back/target/site/jacoco/
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
 
-      - name: Download Frontend Coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-coverage
-          path: front/coverage/
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v5.0.0
+      - name: Build and Analyze Backend with SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=peasch_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD
-            -Dsonar.organization=peasch
-            -Dsonar.sources=back/src/main,front/src
-            -Dsonar.tests=back/src/test,front/src
-            -Dsonar.java.binaries=back/target/classes
-            -Dsonar.coverage.jacoco.xmlReportPaths=back/target/site/jacoco/jacoco.xml
-            -Dsonar.javascript.lcov.reportPaths=front/coverage/lcov.info
-
-  # --- ÉTAPE 4: BUILD BACKEND ---
-  build-backend:
-    name: Build Backend
-    needs: [quality-analysis]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up JDK 11
-        uses: actions/setup-java@v3
-        with:
-          java-version: '11'
-          distribution: 'temurin'
-          cache: 'maven'
-      - name: Build Backend
         run: |
           cd back
-          mvn clean install -DskipTests
-      - name: Upload Backend Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-jar
-          path: back/target/*.jar
+          mvn clean verify sonar:sonar \
+            -Dsonar.projectKey=peasch_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD \
+            -Dsonar.organization=peasch \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.java.binaries=target/classes \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+            -Dsonar.sources=src/main \
+            -Dsonar.tests=src/test
 
-  # --- ÉTAPE 5: BUILD FRONTEND ---
-  build-frontend:
-    name: Build Frontend
-    needs: [quality-analysis]
+  # Étape 3b: Analyse de qualité Frontend (validation avant déploiement)
+  quality-analysis-frontend:
+    name: Quality Analysis Frontend
+    needs: [test-backend, test-frontend]
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '16'
           cache: 'npm'
           cache-dependency-path: front/package-lock.json
-      - name: Build Frontend
+
+      - name: Install Frontend Dependencies
         run: |
           cd front
           npm ci
+
+      - name: Run Frontend Tests with Coverage
+        run: |
+          cd front
+          npm run test -- --watch=false --browsers=ChromeHeadless --code-coverage
+
+
+      - name: SonarCloud Scan Frontend
+        uses: SonarSource/sonarqube-scan-action@v5.0.0 # Version à jour
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: front
+          args: >
+            -Dsonar.projectKey=peasch_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD
+            -Dsonar.organization=peasch
+            -Dsonar.sources=src
+            -Dsonar.javascript.lcov.reportPaths=front/coverage/lcov.info
+
+  # Étape 4: Build Backend (seulement si tests + quality passent)
+  build-backend:
+    name: Build Backend
+    needs: [quality-analysis-backend, quality-analysis-frontend]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build Backend with Maven
+        run: |
+          cd back
+          mvn clean install -DskipTests
+
+      - name: Upload Backend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: back/target/*.jar
+
+  # Étape 5: Build Frontend (seulement si tests + quality passent)
+  build-frontend:
+    name: Build Frontend
+    needs: [quality-analysis-backend, quality-analysis-frontend]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+          cache-dependency-path: front/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd front
+          npm ci
+
+      - name: Build Frontend
+        run: |
+          cd front
           npm run build
+
       - name: Upload Frontend Build
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: front/dist/
 
-  # --- ÉTAPE 6: DOCKER BUILD & PUSH ---
+  # Build et Push Docker Images
   docker-build-push:
     name: Build and Push Docker Images
     needs: [build-backend, build-frontend]
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Build and Push Backend Image
         uses: docker/build-push-action@v4
         with:
           context: ./back
           file: ./back/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/bobapp-back:latest,${{ secrets.DOCKER_USERNAME }}/bobapp-back:${{ github.sha }}
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/bobapp-back:latest
+            ${{ secrets.DOCKER_USERNAME }}/bobapp-back:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/bobapp-back:latest
+          cache-to: type=inline
+
       - name: Build and Push Frontend Image
         uses: docker/build-push-action@v4
         with:
           context: ./front
           file: ./front/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/bobapp-front:latest,${{ secrets.DOCKER_USERNAME }}/bobapp-front:${{ github.sha }}
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/bobapp-front:latest
+            ${{ secrets.DOCKER_USERNAME }}/bobapp-front:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/bobapp-front:latest
+          cache-to: type=inline
 
-  # --- ÉTAPE 7: NOTIFICATION ---
+  # Notification de déploiement
   deployment-notification:
     name: Deployment Notification
     needs: docker-build-push
     runs-on: ubuntu-latest
+
     steps:
       - name: Deployment Success
-        run: echo "🚀 CD Pipeline completed successfully!"
+        run: |
+          echo "🚀 CD Pipeline completed successfully!"
+          echo ""
+          echo "📦 Artifacts built:"
+          echo "  - Backend JAR"
+          echo "  - Frontend dist"
+          echo ""
+          echo "🐳 Docker images pushed to Docker Hub:"
+          echo "  - bobapp-back:latest"
+          echo "  - bobapp-back:${{ github.sha }}"
+          echo "  - bobapp-front:latest"
+          echo "  - bobapp-front:${{ github.sha }}"
+          echo ""
+          echo "✅ Application ready for production deployment"
