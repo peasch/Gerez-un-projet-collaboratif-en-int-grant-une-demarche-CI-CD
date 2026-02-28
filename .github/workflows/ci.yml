@@ -12,6 +12,7 @@ on:
 
 jobs:
   # --- JOB FRONTEND ---
+  # --- JOB FRONTEND ---
   frontend-tests:
     runs-on: ubuntu-latest
     steps:
@@ -30,14 +31,19 @@ jobs:
 
       - name: Run Frontend Tests
         working-directory: ./front
+        # On s'assure que le coverage est bien activé
         run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
 
-      # CRUCIAL : On sauvegarde le rapport lcov pour le job suivant
+      - name: List files (Debug) # Cette étape permet de voir où est réellement le fichier si ça échoue
+        run: ls -R front/coverage
+
       - name: Upload Frontend Coverage
         uses: actions/upload-artifact@v4
         with:
           name: frontend-coverage
-          path: front/coverage/lcov.info
+          # Utilisation d'un joker (wildcard) pour trouver le fichier lcov.info
+          # peu importe le sous-dossier dans coverage
+          path: front/coverage/**/lcov.info
 
   # --- JOB BACKEND + SONAR ---
   build-and-analyze:
