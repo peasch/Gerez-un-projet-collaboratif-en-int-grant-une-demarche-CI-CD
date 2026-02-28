@@ -8,10 +8,7 @@ on:
     branches:
       - main
       - dev
-  # --- JOB FRONTEND ---
-  # On le garde à part car il n'a pas besoin de Java
-  # --- JOB FRONTEND ---
-  # On le garde à part car il n'a pas besoin de Java
+
 
 jobs:
   # --- JOB FRONTEND ---
